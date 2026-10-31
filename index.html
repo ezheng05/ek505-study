@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EK505 Study Guide</title>
+<meta name="description" content="Study guide for BU EK505 Intro to Robotics and Autonomous Systems (Prof. Tron), with embedded videos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+<aside class="rail">
+  <div class="brand">EK505<small>Intro to Robotics · Prof. Tron · Fall 26</small></div>
+  <div class="axes"><i></i><i></i><i></i></div>
+  <div class="progress"><span id="prog-text">0 / 0 sections</span><div class="bar"><span id="prog-bar"></span></div></div>
+  <nav id="nav"></nav>
+  <button class="theme-btn" id="theme-btn" type="button">toggle light / dark</button>
+</aside>
+<button class="menu-btn" id="menu-btn" type="button">Topics</button>
+<main>
+<div class="col">
+<header class="hero">
+  <h1>EK505 study guide</h1>
+  <p>Each section: the big idea in a sentence or two, the equations that matter, a worked example from class, the traps, and quick self-checks. Videos sit at the bottom of each section.</p>
+  <div class="howto">
+    <div><b>Read the blue box first</b>If the big idea clicks, the equations are just bookkeeping.</div>
+    <div><b>Try the Q before opening it</b>Each answer is one or two lines. If yours is longer, re-read.</div>
+    <div><b>Mark "got it"</b>Progress saves in this browser so you can see what's left.</div>
+  </div>
+</header>
+<div class="topic" id="topic-1" data-short="1 · Kinematics">
+<header class="topic-head">
+  <div class="eyebrow">Topic 1 · 9/2 – 9/16</div>
+  <h2>The physical robot: frames, transforms, forward kinematics</h2>
+  <p>Everything later in the course (Jacobians, IK, planning, dynamics) is built on one skill: tracking where a point is, in which frame, and chaining transforms to get there.</p>
+</header>
+
+<section class="lesson" id="robots" data-nav="Robots, joints, C-space">
+  <div class="lesson-head"><h3>What a robot is: links, joints, configuration space</h3><span class="date">9/2</span></div>
+  <div class="bigidea"><b>Big idea</b>A rigid robot is rigid links glued together by joints. Each free link in 3-D has 6 DOF; every joint <em>removes</em> some of them. Whatever freedom is left is described by the joint values $q$, and the set of all valid $q$ is the configuration space.</div>
+  <h5>Core picture</h5>
+  <p>The robot runs a loop: <b>perception</b> (sense, estimate) → <b>control/planning</b> → <b>actuation</b> (motors) → environment → back to perception. Underneath is a model $\dot x = f(x,u)$: how the state changes given inputs. Fast loop (&gt;15 Hz): collision avoidance, tracking. Slow loop: planning, estimating.</p>
+  <h5>Joints remove DOF</h5>
+  <p>DOF the joint allows + constraints it imposes = 6 in space (3 in plane).</p>
+  <div class="tw"><table class="t">
+    <tr><th>Joint</th><th>DOF</th><th>Constraints (space)</th><th>Constraints (plane)</th></tr>
+    <tr><td>Revolute R</td><td>1</td><td>5</td><td>2</td></tr>
+    <tr><td>Prismatic P</td><td>1</td><td>5</td><td>2</td></tr>
+    <tr><td>Helical H</td><td>1</td><td>5</td><td>–</td></tr>
+    <tr><td>Cylindrical C / Universal U</td><td>2</td><td>4</td><td>–</td></tr>
+    <tr><td>Spherical S</td><td>3</td><td>3</td><td>–</td></tr>
+  </table></div>
+  <ul>
+    <li><b>Serial</b> (open chain): no loops. Arms, SCARA. <b>Parallel</b> (closed chain): loops. Delta, Stewart platform.</li>
+    <li>Robots are named by joint strings, e.g. <b>RRP</b> = revolute, revolute, prismatic (SCARA-like). Underline = actuated.</li>
+    <li><b>Configuration</b> $q$ = a kinematically feasible arrangement of links/joints. <b>C-space</b> = all of them. Inputs change configuration: $\dot q = f(q,u)$.</li>
+    <li><b>Workspace</b> = where the end effector works (usually $\mathbb R^2$ or $\mathbb R^3$). <b>End effector</b> = the part of the chain the task cares about.</li>
+  </ul>
+  <h5>Redundancy vs actuation (two different questions)</h5>
+  <ul>
+    <li><b>Redundancy</b> compares inputs to end-effector DOF. Redundant: # inputs &gt; workspace DOF (7-joint Panda reaching a 6-DOF pose), so many $q$ give the same pose. Hyper-redundant: snake robots.</li>
+    <li><b>Actuation</b> asks whether every state can be pushed directly. Under-actuated: some states only change indirectly.</li>
+  </ul>
+  <div class="example"><b>Example: under-actuation</b>A point mass: $\dot q = \begin{bmatrix}\dot x\\ \dot v\end{bmatrix} = \begin{bmatrix} v \\ F/m\end{bmatrix}$. The force $F$ only touches $\dot v$; position changes only through velocity. A quadrotor is the classic robot case: 4 thrusts all point up, so to move sideways it must first tilt.</div>
+  <details class="q"><summary>A 7-joint arm controls a 6-DOF end-effector pose. Redundant, under-actuated, or both?</summary><div class="a">Redundant (7 inputs &gt; 6 task DOF, so a self-motion exists, like moving the elbow while the hand stays still). Not under-actuated: each joint has its own motor.</div></details>
+  <details class="q"><summary>How many DOF does a spherical joint leave between two spatial bodies?</summary><div class="a">3 (all rotations), so it imposes 6 − 3 = 3 constraints (the translations).</div></details>
+</section>
+
+<section class="lesson" id="frames" data-nav="Frames & rotation matrices">
+  <div class="lesson-head"><h3>Frames, coordinates, rotation matrices</h3><span class="date">9/9</span></div>
+  <div class="bigidea"><b>Big idea</b>A point is a physical thing; its coordinates depend on which frame you measure from. A rotation matrix's columns are literally the other frame's axes, written in your frame.</div>
+  <h5>Notation (Tron's convention)</h5>
+  <p>${}^B x$ = coordinates of point $x$ expressed in frame $B$. A frame = orthonormal right-handed axes + an origin. ${}^W R_B, {}^W p_B$ = pose of $B$ seen from $W$. Read subscripts like units: the inner indices must match and cancel.</p>
+  <div class="eq">$${}^W x = {}^W R_B\,{}^B x + {}^W p_B$$<div class="label">rigid body transformation: rotate B-coordinates into W's axes, then shift by where B's origin is</div></div>
+  <ul>
+    <li>Plug in ${}^B x = 0$ (B's own origin) → ${}^W x = {}^W p_B$. So $p$ is "where B's origin is, in W."</li>
+    <li>Plug in ${}^B x = e_1$ → ${}^W x = r_1$, the first column of $R$. So <b>column $i$ of ${}^W R_B$ = B's $i$-th axis expressed in W</b>.</li>
+    <li>Point − point = vector, point + vector = point, point + point = undefined. Vectors (displacements) ignore translation.</li>
+  </ul>
+  <div class="eq">$$R_z(q) = \begin{bmatrix}\cos q & -\sin q & 0\\ \sin q & \cos q & 0\\ 0&0&1\end{bmatrix},\quad R_x(q) = \begin{bmatrix}1&0&0\\0&\cos q&-\sin q\\0&\sin q&\cos q\end{bmatrix},\quad R_y(q)=\begin{bmatrix}\cos q&0&\sin q\\0&1&0\\-\sin q&0&\cos q\end{bmatrix}$$<div class="label">elementary rotations; the 2-D rotation is the top-left block of R_z. Note R_y's sign flip (z × x = y ordering)</div></div>
+  <h5>Why $R^{-1} = R^T$</h5>
+  <p>$R^TR$ is a table of dot products $\langle r_i, r_j\rangle$. The columns are orthonormal axes, so that table is $I$. Right-handed frames add $\det R = 1$. Together: $SO(3) = \{R\in\mathbb R^{3\times3}: R^TR = I,\ \det R = 1\}$.</p>
+  <div class="example"><b>Worked example (activity 9/8)</b>B sits at $(3,1)$ rotated 45°. Point $x_A$ is the tip of B's first axis, so ${}^B x_A = [1, 0]^T$. B's first axis in W is $r_1 = [\cos 45°, \sin 45°]^T = [\tfrac{1}{\sqrt2}, \tfrac{1}{\sqrt2}]^T$, so
+  $${}^W x_A = {}^W R_B \begin{bmatrix}1\\0\end{bmatrix} + \begin{bmatrix}3\\1\end{bmatrix} = \begin{bmatrix}3+\tfrac{1}{\sqrt2}\\ 1+\tfrac{1}{\sqrt2}\end{bmatrix}.$$
+  Same idea for $x_B$ (tip of B's second axis): ${}^B x_B = [0,1]^T$, ${}^W x_B = [3 - \tfrac{1}{\sqrt2},\ 1+\tfrac{1}{\sqrt2}]^T$.</div>
+  <div class="trap"><b>Trap:</b> ${}^W R_B\,{}^W x$ is meaningless (Tron crossed it out in red). ${}^W R_B$ only eats B-coordinates. Check the indices every time.</div>
+  <details class="q"><summary>A robot reports ${}^W p_B = [2,0,0]^T$ and ${}^W R_B = R_z(90°)$. Where in W is the point ${}^B x = [1,0,0]^T$?</summary><div class="a">$R_z(90°)$'s first column is $[0,1,0]^T$ (B's x-axis points along W's y). So ${}^W x = [0,1,0]^T + [2,0,0]^T = [2,1,0]^T$.</div></details>
+  <details class="q"><summary>Why must $\det R = +1$ and not just $\pm 1$?</summary><div class="a">$R^TR = I$ alone allows reflections ($\det = -1$), which turn a right-handed frame into a left-handed one. No physical motion does that.</div></details>
+</section>
+
+<section class="lesson" id="compose" data-nav="Composition & homogeneous T">
+  <div class="lesson-head"><h3>Composition, homogeneous transforms, forward kinematics</h3><span class="date">9/14</span></div>
+  <div class="bigidea"><b>Big idea</b>Forward kinematics is just "chain the frames." Pack $(R,p)$ into one 4×4 matrix $T$ and the chain becomes plain matrix multiplication where inner indices cancel: ${}^0T_1\,{}^1T_2\,{}^2T_E = {}^0T_E$.</div>
+  <h5>Composition by substitution</h5>
+  <p>Substitute ${}^1x = {}^1R_2\,{}^2x + {}^1p_2$ into ${}^0x = {}^0R_1\,{}^1x + {}^0p_1$:</p>
+  <div class="eq">$${}^0R_2 = {}^0R_1\,{}^1R_2,\qquad {}^0p_2 = {}^0R_1\,{}^1p_2 + {}^0p_1$$<div class="label">rotations multiply; translations add after rotating ¹p₂ into frame 0's axes</div></div>
+  <h5>Homogeneous coordinates</h5>
+  <p>Append a 1 to points, a 0 to vectors. Then one matrix does rotation and translation together, and vectors automatically ignore translation (the 0 kills the $p$ column).</p>
+  <div class="eq">$${}^W T_B = \begin{bmatrix}{}^W R_B & {}^W p_B\\ 0^T & 1\end{bmatrix},\qquad \begin{bmatrix}{}^W x\\1\end{bmatrix} = {}^W T_B \begin{bmatrix}{}^B x\\1\end{bmatrix}$$<div class="label">SE(3) = all such matrices with R ∈ SO(3), p ∈ ℝ³</div></div>
+  <div class="eq">$${}^B T_W = ({}^W T_B)^{-1} = \begin{bmatrix}{}^W R_B^T & -{}^W R_B^T\,{}^W p_B\\ 0^T & 1\end{bmatrix}$$<div class="label">inversion: swap the indices. The translation is NOT just −p; it must be rotated into B's axes</div></div>
+  <div class="example"><b>Worked example: the spherical robot (activity 9/8, solved 9/14)</b>Base link (red) along z, joint $q_1$ about z, link (green) along z, joint $q_2$ about local x, link (blue) along y to the end effector. Read right to left, peeling one frame at a time:
+  $${}^0T_E = \underbrace{\begin{bmatrix}R_z(q_1) & p_z(\ell_{red})\\0&1\end{bmatrix}}_{0\leftarrow1}\underbrace{\begin{bmatrix}R_x(q_2) & p_z(\ell_{green})\\0&1\end{bmatrix}}_{1\leftarrow2}\underbrace{\begin{bmatrix}I & p_y(\ell_{blue})\\0&1\end{bmatrix}}_{2\leftarrow E}$$
+  Multiplying the blocks out gives exactly the substitution answer: ${}^0p_E = R_z(q_1)R_x(q_2)\,p_y(\ell_{blue}) + R_z(q_1)\,p_z(\ell_{green}) + p_z(\ell_{red})$ and $R = R_z(q_1)R_x(q_2)$.</div>
+  <div class="trap"><b>Trap:</b> order matters. $R_z(q_1)R_x(q_2) \ne R_x(q_2)R_z(q_1)$. The factor closest to the base goes on the left.</div>
+  <div class="trap"><b>Trap:</b> in ${}^0p_2 = {}^0R_1\,{}^1p_2 + {}^0p_1$, forgetting to rotate ${}^1p_2$ is the most common mistake. ${}^1p_2$ is written in frame 1's axes; you can't add it to a frame-0 vector until it's rotated.</div>
+  <details class="q"><summary>Why does a vector get a 0 in the 4th slot instead of a 1?</summary><div class="a">A vector is a displacement (difference of two points: $[\ast,1] - [\ast,1] = [\ast,0]$). Moving the frame's origin doesn't change a displacement, and the 0 makes $T$ skip the translation column.</div></details>
+  <details class="q"><summary>Which is correct: ${}^W x = {}^B R_W\,{}^B x + {}^B p_W$ or ${}^W x = {}^W R_B\,{}^B x + {}^W p_B$?</summary><div class="a">The second (the 9/14 quiz). Indices: ${}^W R_B\,{}^B x$, the B's cancel and the result is in W. The first has mismatched frames.</div></details>
+</section>
+
+<section class="lesson" id="urdf" data-nav="URDF, spatialmath, Swift">
+  <div class="lesson-head"><h3>URDF, spatialmath, Robotics Toolbox, Swift</h3><span class="date">9/14 – 9/16</span></div>
+  <div class="bigidea"><b>Big idea</b>A URDF is the forward-kinematics chain written as XML. Each joint's <code>&lt;origin&gt;</code> is a fixed transform from parent to child, and its <code>&lt;axis&gt;</code> says which elementary motion $q$ drives. FK = product of (fixed origin) × (joint motion) down the chain.</div>
+  <h5>URDF anatomy</h5>
+  <ul>
+    <li><code>&lt;robot name&gt;</code> is the top tag. URDF only supports open chains (MuJoCo supports closed; USD is the newer NVIDIA format; XACRO = URDF + macros).</li>
+    <li><code>&lt;link&gt;</code> has <code>&lt;visual&gt;</code> (rendering), <code>&lt;collision&gt;</code> (collision shape), <code>&lt;inertial&gt;</code> (mass, COM origin, inertia ixx ixy ixz iyy iyz izz: 6 numbers because the tensor is symmetric).</li>
+    <li><code>&lt;joint type&gt;</code>: <b>revolute</b> (with limits), <b>continuous</b> (revolute, no limits), <b>prismatic</b> (translation), <b>fixed</b>. Has <code>&lt;parent link&gt;</code>, <code>&lt;child link&gt;</code>, <code>&lt;origin xyz rpy&gt;</code> in the parent frame, <code>&lt;axis xyz&gt;</code>, <code>&lt;limit&gt;</code>. Links are referenced by name.</li>
+  </ul>
+  <div class="eq">$${}^0T_E(q) = \prod_i \underbrace{T_{origin,i}}_{\text{fixed, from }\langle origin\rangle}\;\underbrace{T_{joint,i}(q_i)}_{R_{axis}(q_i)\text{ or }p_{axis}(q_i)}$$<div class="label">HW1 Pre-LLM 1.2: how a URDF becomes forward kinematics</div></div>
+  <h5>Inertia of simple shapes (per 1 kg; multiply by mass)</h5>
+  <div class="tw"><table class="t">
+    <tr><th>Shape</th><th>I_xx</th><th>I_yy</th><th>I_zz</th></tr>
+    <tr><td>Box w(x) d(y) h(z)</td><td>$\tfrac1{12}(d^2+h^2)$</td><td>$\tfrac1{12}(w^2+h^2)$</td><td>$\tfrac1{12}(w^2+d^2)$</td></tr>
+    <tr><td>Cylinder r, L along z</td><td>$\tfrac1{12}(3r^2+L^2)$</td><td>$\tfrac1{12}(3r^2+L^2)$</td><td>$\tfrac12 r^2$</td></tr>
+    <tr><td>Sphere r</td><td>$\tfrac25 r^2$</td><td>$\tfrac25 r^2$</td><td>$\tfrac25 r^2$</td></tr>
+  </table></div>
+  <p>Pattern for the box: rotating about an axis, only the <em>other two</em> dimensions matter. Check against the 9/14 URDF: 2 kg box 0.4×0.4×0.2 → $I_{xx} = 2\cdot\tfrac1{12}(0.4^2+0.2^2) = 0.0333$, $I_{zz} = 2\cdot\tfrac1{12}(0.4^2+0.4^2) = 0.0533$. ✓</p>
+  <h5>Python tools</h5>
+<pre><code>from spatialmath import SE3
+T01 = SE3.Rz(q1) * SE3.Tz(l1)     # elementary transforms compose with *
+T = T01 * T12                      # = 0T2
+robot.fkine(q)                     # roboticstoolbox: FK as an SE3
+robot.jacob0(q)                    # 6xn Jacobian in base frame (topic 2)
+
+env = swift.Swift(); env.launch(realtime=True); env.add(robot)
+while True:
+    robot.q = q                    # update
+    env.step(0.05)                 # advance sim time 0.05 s</code></pre>
+  <p>The Robotics Toolbox prints a robot as an ETS table: each link's transform = fixed <code>SE3(...)</code> ⊕ <code>Rz(q_i)</code>. That's the product formula above. pip name is <code>swift-sim</code>.</p>
+  <details class="q"><summary>In a URDF, which tag sets the translation part of a joint's transform, and in which frame?</summary><div class="a"><code>&lt;origin xyz rpy&gt;</code> inside the joint, expressed in the parent link's frame.</div></details>
+  <details class="q"><summary>Cart-pole (HW1): what joint types connect base→cart and cart→pole?</summary><div class="a">Prismatic (limited so the cart stays on the track) and continuous (revolute about y with no limits).</div></details>
+</section>
+
+<section class="lesson" id="velocity" data-nav="Velocities, ω̂, Lie derivative">
+  <div class="lesson-head"><h3>Derivatives of poses: angular velocity, twists, Lie derivatives</h3><span class="date">9/16</span></div>
+  <div class="bigidea"><b>Big idea</b>Differentiate a rotation matrix and you always get $R$ times a skew-symmetric matrix. That skew matrix is just the angular velocity vector $\omega$ in disguise (the "hat" of $\omega$).</div>
+  <div class="example"><b>Worked: derivative of a 2-D rotation</b>
+  $$\frac{d}{dt}\begin{bmatrix}\cos q & -\sin q\\ \sin q&\cos q\end{bmatrix} = \begin{bmatrix}-\dot q\sin q & -\dot q\cos q\\ \dot q\cos q&-\dot q\sin q\end{bmatrix} = R(q)\underbrace{\begin{bmatrix}0&-\dot q\\ \dot q&0\end{bmatrix}}_{\hat\omega}$$
+  The angular velocity is $\dot q$, packed into a skew-symmetric matrix.</div>
+  <div class="eq">$${}^W\dot R_B = {}^W R_B\,\hat\omega,\qquad \hat\omega = \begin{bmatrix}0&-\omega_3&\omega_2\\ \omega_3&0&-\omega_1\\ -\omega_2&\omega_1&0\end{bmatrix},\qquad \hat\omega\, v = \omega\times v$$<div class="label">ω̂ on the right of R → ω in body coordinates. ω̂ on the left (Ṙ = ω̂R) → ω in world coordinates</div></div>
+  <div class="trap"><b>Heads up:</b> the 3×3 skew matrix in the 9/16 notes is written with the opposite signs. Use the version above: it matches the 2-D case, matches $\hat\omega v = \omega\times v$, matches <code>spatialmath</code>'s <code>skew()</code>, and is the one Tron wrote in the 10/26 warm-up poll.</div>
+  <ul>
+    <li>Skew-symmetric: $A = -A^T$, so the diagonal is zero. 2×2 has 1 free number, 3×3 has 3. Hat $\wedge$: vector → matrix. Vee $\vee$: matrix → vector.</li>
+    <li>Derivative of a curve $f(t)$ = tangent = velocity. Derivative of ${}^Wp_B(t)$ = linear velocity of the body in W.</li>
+    <li><b>Twist</b> = (angular velocity, linear velocity) together; it's the derivative of a pose: $\frac{d}{dt}T = \begin{bmatrix}R\hat\omega & \dot p\\ 0 & 0\end{bmatrix}$.</li>
+  </ul>
+  <h5>Lie derivative</h5>
+  <div class="eq">$$\mathcal L_{\dot x} F = \frac{d}{dt}F(x(t))$$<div class="label">rate of change of a field F as you move along a curve x(t). This is the workhorse for every derivative in topic 2</div></div>
+  <p>Picture a hiker on a hill: $F$ is altitude, $x(t)$ is the trail, and the Lie derivative is how fast the hiker's altitude changes. It depends on both the terrain and which way (and how fast) they're walking.</p>
+  <details class="q"><summary>Why is $\dot R R^T$ always skew-symmetric? (Hint: differentiate $RR^T = I$.)</summary><div class="a">$\frac{d}{dt}(RR^T) = \dot RR^T + R\dot R^T = 0$, so $\dot RR^T = -(\dot RR^T)^T$. That's the definition of skew-symmetric.</div></details>
+</section>
+</div>
+<div class="topic" id="topic-2" data-short="2 · Derivatives & optimization">
+<header class="topic-head">
+  <div class="eyebrow">Topic 2 · 9/21 – 10/7</div>
+  <h2>Derivative works: Jacobians, gradient descent, least squares, constraints</h2>
+  <p>One definition does almost all the work here: the gradient is whatever vector makes $\frac{d}{dt}f(x(t)) = \langle \mathrm{grad} f, \dot x\rangle$. Every derivation in this topic (Jacobians, least squares, IK) is that definition applied carefully.</p>
+</header>
+
+<section class="lesson" id="jacobian" data-nav="Gradients & Jacobians">
+  <div class="lesson-head"><h3>Lie derivatives, gradients, Jacobians</h3><span class="date">9/21</span></div>
+  <div class="bigidea"><b>Big idea</b>Move along a curve and ask "how fast does $F$ change?" The answer is always (something that depends on where you are) × (how fast you're moving). For scalar $F$ that something is the gradient; for vector $F$ it's the Jacobian matrix.</div>
+  <div class="eq">$$\frac{d}{dt}F(x(t)) = \mathcal L_{\dot x}F = \langle \mathrm{grad}\,F(x),\ \dot x\rangle \qquad\text{(scalar }F\text{)}$$
+  $$\underbrace{\frac{d}{dt}F(x(t))}_{\mathbb R^m} = \underbrace{J_F(x)}_{m\times n}\ \underbrace{\dot x}_{\mathbb R^n},\qquad J_{ij} = \frac{\partial F_i}{\partial x_j}\qquad\text{(vector }F\text{)}$$<div class="label">definition of gradient and Jacobian, both read off from the Lie derivative</div></div>
+  <ul>
+    <li>Gradient = <b>direction of steepest ascent</b>: among unit $\dot x$, $\langle \mathrm{grad}F,\dot x\rangle$ is biggest when $\dot x$ points along grad F.</li>
+    <li>In coordinates, grad F = column of partials. Each partial is a Lie derivative along a basis direction: $\partial F/\partial x_i = \mathcal L_{E_i}F$.</li>
+    <li>Gradient is <b>orthogonal to level sets</b>: walking along a level set, $F$ doesn't change, so $\langle\mathrm{grad}F,\dot x\rangle = 0$.</li>
+    <li>For a robot, $F$ = forward kinematics, $x = q$: ${}^0\dot p_E = J(q)\,\dot q$. <b>Column $i$ of $J$ = end-effector velocity when only joint $i$ moves at unit speed</b> ($Je_i = j_i$).</li>
+  </ul>
+  <div class="example"><b>Worked: Jacobian of the spherical robot by hand (activity 9/21)</b>
+  With $\ell_{red}=\ell_{green}=0$, $\ell_{blue}=0.8$: ${}^0p_E = R_z(q_0)R_x(q_1)\begin{bmatrix}0\\0\\0.8\end{bmatrix} = \begin{bmatrix}0.8\sin q_0 \sin q_1\\ -0.8\cos q_0\sin q_1\\ 0.8\cos q_1\end{bmatrix}$.<br>
+  Product rule (order matters with matrices), using $\dot R_z = R_z\,[0,0,\dot q_0]^\wedge$ and $\dot R_x = R_x\,[\dot q_1,0,0]^\wedge$:
+  $$\dot p = \underbrace{R_z\,\hat e_3\,R_x\,p_{blue}}_{j_1}\,\dot q_0 + \underbrace{R_zR_x\,\hat e_1\,p_{blue}}_{j_2}\,\dot q_1,\qquad J = \begin{bmatrix}0.8\sin q_1\cos q_0 & 0.8\sin q_0\cos q_1\\ 0.8\sin q_0\sin q_1 & -0.8\cos q_0\cos q_1\\ 0 & -0.8\sin q_1\end{bmatrix}$$
+  Sanity check: column 1 has zero z-component. Spinning about the vertical axis never moves the tip up or down. ✓</div>
+  <p>Tron's key line: <em>"It should always be possible to write the Lie derivative as a matrix that depends on q times the vector of qdot."</em> If you can't factor out $\dot q$, you've made an algebra mistake.</p>
+  <details class="q"><summary>$F:\mathbb R^3\to\mathbb R^2$. What size is $J_F$, and what does row 2 mean?</summary><div class="a">$2\times3$. Row 2 is the gradient of $F_2$ (transposed): how the second output responds to each input.</div></details>
+  <details class="q"><summary>Why is $\langle \mathrm{grad}f, \dot x\rangle$ maximized when $\dot x \parallel \mathrm{grad}f$?</summary><div class="a">$\langle v,w\rangle = \|v\|\|w\|\cos\theta$. With $\|w\|=1$ fixed, it's largest at $\theta=0$.</div></details>
+</section>
+
+<section class="lesson" id="jcode" data-nav="Jacobians in code, rotations">
+  <div class="lesson-head"><h3>Jacobians in code, the 6-row Jacobian, rotation representations</h3><span class="date">9/23</span></div>
+  <div class="bigidea"><b>Big idea</b>There are three ways to get the same $J$: differentiate the FK symbolically, push unit joint velocities through the product-rule formula one column at a time, or call <code>jacob0()</code>. The built-in one has 3 extra rows: the angular velocity part.</div>
+<pre><code>q = sp.symbols(['q0', 'q1'])
+f = sp.Matrix(robot_fkine_ee(q))       # RTB gives numpy arrays of sympy exprs; convert first
+J1 = f.jacobian(q)                      # 1) symbolic
+J2 = [robot_fkine_ee_jacob(q, [1,0]),   # 2) J e_i = column i
+      robot_fkine_ee_jacob(q, [0,1])]
+J3 = sp.simplify(robot.jacob0(q))       # 3) built-in, 6 x n
+# skewa([vx,vy,vz,wx,wy,wz]) = 4x4 hat; spatialmath orders (v, omega)</code></pre>
+  <div class="eq">$$\begin{bmatrix}\dot p\\ \omega\end{bmatrix} = \underbrace{\begin{bmatrix}J_p\\ J_\omega\end{bmatrix}}_{\texttt{jacob0}:\ 6\times n}\dot q,\qquad J_\omega = \begin{bmatrix}0 & \cos q_0\\ 0&\sin q_0\\ 1&0\end{bmatrix}\ \text{(spherical robot)}$$<div class="label">top 3 rows: linear velocity. bottom 3: angular velocity (from Ṙ = Rω̂, then vee). HW2 uses only Jp = jacob0(q)[:3,:]</div></div>
+  <p>Read $J_\omega$ physically: joint $q_0$ always spins about world z ($[0,0,1]$). Joint $q_1$ spins about its local x-axis, which has been rotated by $q_0$, so in world coordinates it's $[\cos q_0, \sin q_0, 0]$.</p>
+  <h5>Composition rule worth memorizing</h5>
+  <div class="eq">$$\begin{bmatrix}R_1&p_1\\0&1\end{bmatrix}\begin{bmatrix}R_2&p_2\\0&1\end{bmatrix} = \begin{bmatrix}R_1R_2 & R_1p_2+p_1\\0&1\end{bmatrix}$$<div class="label">rotations affect rotations and translations; translations never affect rotations</div></div>
+  <h5>Ways to represent a rotation</h5>
+  <div class="tw"><table class="t">
+    <tr><th>Representation</th><th>Size</th><th>Catch</th></tr>
+    <tr><td>Rotation matrix</td><td>3×3</td><td>9 numbers for 3 DOF, but columns = axes (easy to read)</td></tr>
+    <tr><td>Roll-pitch-yaw / Euler</td><td>3 angles</td><td>24 axis-order conventions (XYZ, ZYX, XYX…); must state which</td></tr>
+    <tr><td>Axis-angle</td><td>unit axis + angle</td><td>$(w,\theta) \equiv (-w,-\theta)$</td></tr>
+    <tr><td>Quaternion</td><td>unit 4-vector</td><td>$q\equiv -q$; fastest and compact. ROS and spatialmath put the real part in different places</td></tr>
+  </table></div>
+  <h5>ROS2 in one paragraph (Lab 1)</h5>
+  <p>Middleware for modular robot software. Distribution → packages → nodes, messages, topics. <b>Pub/sub</b>: nodes talk through topics and don't need to know each other (e.g. VRPN mocap node publishes <code>/limo_xxx/pose</code>, controller subscribes). One message type per topic. <b>Client/server</b> (services): request/response, both sides know each other. CLI: <code>ros2 node list</code>, <code>ros2 topic list | hz | echo</code>, <code>ros2 run pkg node</code>, <code>ros2 launch pkg file</code>.</p>
+  <details class="q"><summary>What do the extra three rows of <code>jacob0()</code> mean? (activity Q1.3)</summary><div class="a">They map $\dot q$ to the end effector's angular velocity $\omega$ (in the base frame). Top 3 rows map $\dot q$ to linear velocity.</div></details>
+  <details class="q"><summary>Why do we wrap the RTB output in <code>sp.Matrix(...)</code>?</summary><div class="a">RTB returns a NumPy array whose cells are SymPy expressions. NumPy arrays don't have <code>.jacobian()</code>; SymPy matrices do.</div></details>
+</section>
+
+<section class="lesson" id="gd" data-nav="Gradient descent">
+  <div class="lesson-head"><h3>Unconstrained optimization and gradient descent</h3><span class="date">9/28</span></div>
+  <div class="bigidea"><b>Big idea</b>At a minimum, no direction goes downhill, so grad f = 0. Gradient descent finds such points by repeatedly stepping downhill. It's guaranteed to go down, but only to the <em>nearest</em> valley.</div>
+  <ul>
+    <li><b>Critical points</b>: grad f = 0. Could be a min, max, or saddle. Minima can be local or global, and may not be unique (symmetry gives whole lines of minimizers).</li>
+    <li>Scaling or shifting doesn't move the minimizer: $\arg\min f = \arg\min (af + c)$ for $a&gt;0$. That's why we use $\tfrac12\|\cdot\|^2$: the ½ cancels the 2 from differentiation.</li>
+  </ul>
+  <div class="eq">$$\underbrace{\dot x = -\mathrm{grad}\,f(x)}_{\text{gradient flow (continuous)}}\quad\xrightarrow{\ \text{forward Euler}\ }\quad \underbrace{x[k+1] = x[k] - \varepsilon\,\mathrm{grad}\,f(x[k])}_{\text{gradient descent}}$$<div class="label">repeat until ‖grad f‖ &lt; tolerance. ε = step size</div></div>
+  <p><b>Why it always goes down:</b> plug the flow into the Lie derivative: $\frac{d}{dt}f = \langle \mathrm{grad}f, -\mathrm{grad}f\rangle = -\|\mathrm{grad}f\|^2 \le 0$. Zero only at critical points (the equilibria of the flow).</p>
+  <h5>Limitations</h5>
+  <ul>
+    <li>Multiple local minima → answer depends on the initial guess. Fixes: convex problems, warm starts, convex approximations.</li>
+    <li>Can stall at a saddle or a max if you start exactly there.</li>
+    <li>Step size: too small = slow, too big = overshoot/unstable.</li>
+    <li><b>Conditioning</b>: round level sets → gradient points straight at the minimum. Long skinny ellipses → gradient points across the valley, so GD zig-zags.</li>
+  </ul>
+  <div class="example"><b>Example: step size on $f(x) = \tfrac12 x^2$</b>grad f = x, so $x[k+1] = (1-\varepsilon)x[k]$. $\varepsilon = 0.5$: halves each step (converges). $\varepsilon = 1$: lands on 0 in one step. $\varepsilon = 2.5$: multiplies by −1.5 each step (diverges, flipping sign). Stable iff $0 &lt; \varepsilon &lt; 2$.</div>
+  <p><b>Topology</b> (side note in the 9/28 notes): a topology says which points are "close" without needing distance. A neighborhood of $x$ is an open set containing it. Gluing the ends of an interval makes a circle, which is why joint angles live on a circle, not a line.</p>
+  <details class="q"><summary>Gradient flow converges to a critical point. Why "in general a local minimum"?</summary><div class="a">Maxima and saddles are unstable equilibria: any tiny perturbation pushes you off downhill. Only minima attract nearby trajectories.</div></details>
+</section>
+
+<section class="lesson" id="leastsq" data-nav="Least squares">
+  <div class="lesson-head"><h3>Linear least squares</h3><span class="date">9/30</span></div>
+  <div class="bigidea"><b>Big idea</b>Too many equations, no exact solution? Pick the $x$ that makes the leftover errors (residuals) as small as possible in total squared size. Because the cost is a quadratic bowl, setting the gradient to zero gives a closed-form answer.</div>
+  <ul>
+    <li>Measurements $a_i^Tx = b_i$ stacked into $Ax \approx b$. Underdetermined ($N &lt; \dim x$): infinitely many solutions. Determined: one. Overdetermined: usually none exact.</li>
+    <li>Residuals $r = Ax - b$. Problem: $\min_x \|Ax-b\|^2$.</li>
+  </ul>
+  <h5>Derivation (activity 9/30, exactly how Tron does it)</h5>
+  <p>$f = \tfrac12(Ax-b)^T(Ax-b) = \tfrac12[x^TA^TAx - 2b^TAx + b^Tb]$ (using: a scalar equals its transpose, so $x^TA^Tb = b^TAx$). Differentiate along $x(t)$:</p>
+  <div class="eq">$$\frac{d}{dt}f = \tfrac12[\dot x^TA^TAx + x^TA^TA\dot x] - b^TA\dot x = (A^TAx - A^Tb)^T\dot x = \langle \underbrace{A^TAx - A^Tb}_{\mathrm{grad} f},\ \dot x\rangle$$
+  $$\mathrm{grad}f = 0\ \Rightarrow\ A^TAx^* = A^Tb\ \Rightarrow\ \boxed{x^* = (A^TA)^{-1}A^Tb}$$<div class="label">normal equations. needs A^T A invertible (A has full column rank)</div></div>
+  <div class="example"><b>Worked: fit a line $y = c_0 + c_1 t$ to (0,1), (1,2), (2,2)</b>
+  $A = \begin{bmatrix}1&0\\1&1\\1&2\end{bmatrix}$, $b = \begin{bmatrix}1\\2\\2\end{bmatrix}$, $A^TA = \begin{bmatrix}3&3\\3&5\end{bmatrix}$, $A^Tb = \begin{bmatrix}5\\6\end{bmatrix}$ → $x^* = \begin{bmatrix}7/6\\ 1/2\end{bmatrix}$. Residuals $[\tfrac16, -\tfrac13, \tfrac16]$: no line hits all three, this one balances the misses.<br>
+  The activity's CVXPY problem ($A$ = 3×3, $b = [4,1,2]$) is square and invertible, so the answer is exact: $x^* = [1, 2, 3]^T$, cost 0.</div>
+  <p>Used later for estimation (localization) and planning (spline fitting in topic 3).</p>
+  <details class="q"><summary>Why can we drop the ½ or add constants to the cost without changing $x^*$?</summary><div class="a">Positive scaling and shifting don't change where the minimum is, only its height.</div></details>
+  <details class="q"><summary>Geometrically, what's special about the residual $Ax^*-b$ at the optimum?</summary><div class="a">$A^T(Ax^*-b) = 0$: the residual is orthogonal to every column of $A$. $Ax^*$ is the projection of $b$ onto the column space.</div></details>
+</section>
+
+<section class="lesson" id="ik" data-nav="Inverse kinematics">
+  <div class="lesson-head"><h3>Inverse kinematics by gradient descent</h3><span class="date">9/30 · HW2</span></div>
+  <div class="bigidea"><b>Big idea</b>IK = "find joints that put the hand at $p^*$." Write it as nonlinear least squares, $\min_q \tfrac12\|F(q)-p^*\|^2$. The gradient is just $J^T$ times the position error, so each GD step converts "hand is off by this much" into "nudge joints by this much."</div>
+  <div class="eq">$$\mathrm{grad}_q f = J(q)^T\big(F(q) - p^*\big),\qquad q[k+1] = q[k] - \varepsilon\,J^T\big(F(q[k]) - p^*\big)$$<div class="label">derived by chaining least squares (A = I, x = F(q)) with ẋ = J q̇</div></div>
+  <p>Derivation in one line: $\frac{d}{dt}f = (F(q)-p^*)^T\dot x = (F(q)-p^*)^TJ\dot q = \langle J^T(F(q)-p^*),\ \dot q\rangle$.</p>
+  <div class="widget" id="w-arm">
+    <div class="wtitle">Try it · two-link arm (l₁ = 1, l₂ = 0.8)</div>
+    <canvas aria-label="two-link arm"></canvas>
+    <div class="controls">
+      <label for="arm-q1">q₁ <input type="range" id="arm-q1" min="-3.14" max="3.14" step="0.01"></label>
+      <label for="arm-q2">q₂ <input type="range" id="arm-q2" min="-3.14" max="3.14" step="0.01"></label>
+      <label for="arm-alpha">step ε <input type="range" id="arm-alpha" min="0.02" max="0.6" step="0.01" value="0.15"></label>
+    </div>
+    <div class="readout"></div>
+    <p style="font-size:13px;color:var(--ink-2);margin:8px 0 0"><b style="color:var(--ax-x)">Red</b> = column 1 of J (tip velocity if only q₁ moves). <b style="color:var(--ax-z)">Blue</b> = column 2. <b>Click anywhere</b> to set a target and watch gradient-descent IK. Try: a target outside the dashed circle (unreachable, still converges to the closest point), q₂ ≈ 0 (arm straight: columns parallel, det J = 0), and a large ε.</p>
+  </div>
+  <ul>
+    <li><b>Works for unreachable targets</b>: it just gets as close as possible (that's the least-squares advantage).</li>
+    <li><b>Multiple solutions</b>: elbow-up vs elbow-down. Which one you get depends on $q_0$ (HW2 Report 1.4).</li>
+    <li><b>Nullspace</b>: $N(J) = \{v: Jv = 0\}$ = joint motions that don't move the hand. "Fat" Jacobians (redundant robots like Panda, 3×7 for position) always have one. Adding a nullspace term lets you pursue a secondary goal (avoid obstacles, stay away from limits) for free.</li>
+    <li><b>Joint limits</b> (HW2): clamp $q$ to its limits after each step. That's projected gradient descent onto a box (next sections).</li>
+  </ul>
+  <div class="trap"><b>Trap:</b> it's $J^T$, not $J^{-1}$. $J$ is often non-square or singular; $J^T$ always exists and always gives a descent direction.</div>
+  <details class="q"><summary>At a singularity (arm fully straight), what happens to GD-IK for a target straight out along the arm?</summary><div class="a">Both Jacobian columns are perpendicular to the arm, so $J^T e = 0$ for an error along the arm. The gradient vanishes even though the error doesn't: GD stalls. (It's also unreachable if it's beyond $l_1+l_2$.)</div></details>
+  <details class="q"><summary>Panda IK for position: what's the size of $J_p$, and does it have a nullspace?</summary><div class="a">3×7. Fat, so its nullspace is at least 4-dimensional: many joint motions keep the hand still.</div></details>
+</section>
+
+<section class="lesson" id="convex" data-nav="Convexity & CVXPY">
+  <div class="lesson-head"><h3>Convexity and CVXPY</h3><span class="date">9/30 – 10/5</span></div>
+  <div class="bigidea"><b>Big idea</b>Convex = bowl-shaped with no false valleys, so every local minimum is the global one and gradient descent can't get stuck. CVXPY only lets you build problems out of pieces whose convexity it can certify, which is why its answers are always global.</div>
+  <ul>
+    <li><b>Convex set</b>: the segment between any two points stays inside. $\lambda x_2 + (1-\lambda)x_1 \in S$ for $\lambda\in[0,1]$. Rings, U-shapes, letters with holes: not convex.</li>
+    <li><b>Convex function</b>: chord lies above the graph: $f(\lambda x_2+(1-\lambda)x_1) \le \lambda f(x_2)+(1-\lambda)f(x_1)$. Concave = $-f$ convex. Affine = both. $\sin$, $x^3$ = neither.</li>
+  </ul>
+  <h5>Rules that preserve convexity (disciplined convex programming)</h5>
+  <ul>
+    <li>sum of convex is convex; max of convex is convex</li>
+    <li>convex ∘ affine is convex: $f(Ax+b)$</li>
+    <li>increasing convex ∘ convex is convex: $a(f(x))$</li>
+    <li>product of convex is <em>not</em> necessarily convex</li>
+  </ul>
+  <div class="example"><b>Chain it: why least squares is convex</b>$x_i^2$ convex → $(a_i^Tx - b_i)^2$ (affine inside) → $\sum_i(\cdot)$ (sum) → $\|Ax-b\|^2$. Every step uses one rule.</div>
+<pre><code>x = cp.Variable((3, 1))
+cost = cp.sum_squares(A @ x - b)
+prob = cp.Problem(cp.Minimize(cost), constraints)   # minimize convex / maximize concave only
+prob.solve()
+prob.status   # 'optimal' | 'unbounded' (min is -inf) | 'infeasible' | 'inaccurate' (rescale)
+x.value</code></pre>
+  <details class="q"><summary>Is $\max\{x^2, 2x+1\}$ convex? Is $x^2\cdot e^{x}$ guaranteed convex by the rules?</summary><div class="a">Yes (max of convex). The product isn't covered by any rule, so CVXPY would reject it even though you'd have to check by hand.</div></details>
+</section>
+
+<section class="lesson" id="constrained" data-nav="Constraints & QPs">
+  <div class="lesson-head"><h3>Constrained optimization, projected GD, problem classes</h3><span class="date">10/5</span></div>
+  <div class="bigidea"><b>Big idea</b>Once there's a feasible set, the best point is often on its boundary, where the gradient is not zero; it's pushing against a wall. To stay globally solvable, both the cost and the feasible set must be convex.</div>
+  <div class="eq">$$\min_x f(x)\ \ \text{s.t.}\ \ g_i(x) \le 0\ (\text{convex}),\quad h_i(x) \ge 0\ (\text{concave}),\quad a^Tx + b = 0\ (\text{affine})$$<div class="label">these forms keep the feasible set convex. a nonlinear equality (e.g. a circle) is never convex. empty set → infeasible</div></div>
+  <h5>Projected gradient descent</h5>
+  <ol>
+    <li>Step: $x' = x[k] - \varepsilon\,\mathrm{grad}f(x[k])$</li>
+    <li>Project: $x[k+1] = \mathrm{Proj}_S(x') = \arg\min_{x\in S}\|x - x'\|^2$</li>
+  </ol>
+  <p>For box constraints the projection is just clamping each coordinate (HW2 joint limits). Otherwise the projection is itself an optimization. Behavior: follow the gradient from the interior until a constraint becomes <b>active</b>, then slide along the boundary.</p>
+  <h5>Hit parade (hardest → easiest)</h5>
+  <div class="tw"><table class="t">
+    <tr><th>#</th><th>Class</th><th>Notes</th></tr>
+    <tr><td>8</td><td>Non-convex</td><td>local minima, local solvers</td></tr>
+    <tr><td>7</td><td>Convex, no structure</td><td>global, GD, slower</td></tr>
+    <tr><td>6</td><td>SDP</td><td>PSD matrix variables, $X \succeq 0$</td></tr>
+    <tr><td>5</td><td>SOCP</td><td>second-order cone</td></tr>
+    <tr><td>4</td><td>QCQP</td><td>quadratic cost and/or quadratic constraints; convex if $A\succeq0$</td></tr>
+    <tr><td>3</td><td>QP</td><td>$\min x^TAx + b^Tx$ s.t. $Cx + d\ge0$. Real-time (&gt;10 Hz) if not huge</td></tr>
+    <tr><td>2</td><td>LP</td><td>linear everything, millions of variables</td></tr>
+    <tr><td>1</td><td>Least squares (± 1–2 constraints)</td><td>closed form</td></tr>
+  </table></div>
+  <div class="example"><b>Activity 10/7: $f(x) = \tfrac12\|x - [1,1]^T\|^2$ with $x_1 \ge 0,\ x_2 \le 0$</b>Constraint $Ax+b\le0$ with $A = \mathrm{diag}(-1, 1)$ means $-x_1\le0$ and $x_2 \le 0$. Unconstrained min $(1,1)$ violates $x_2\le0$. Level sets are circles around $(1,1)$; the closest feasible point is $(1, 0)$. There grad f $= x - [1,1]^T = (0,-1)$: not zero, it points straight into the wall $x_2 = 0$.</div>
+  <details class="q"><summary>Why does a non-convex feasible set ruin things even with a convex cost?</summary><div class="a">A linear or bowl cost on a U-shaped region can have two separate boundary points that are each best locally. GD finds whichever is nearer.</div></details>
+</section>
+
+<section class="lesson" id="lagrangemult" data-nav="Lagrange multipliers">
+  <div class="lesson-head"><h3>Lagrange multipliers: why constrained minima aren't flat</h3><span class="date">10/7</span></div>
+  <div class="bigidea"><b>Big idea</b>At a constrained minimum, the cost still wants to go downhill, but every downhill direction is blocked by an active constraint. The gradient's pull is exactly balanced by the constraints' push.</div>
+  <div class="eq">$$\nabla f(x^*) = -\lambda_1\nabla g_1(x^*) - \lambda_2\nabla g_2(x^*) - \cdots,\qquad \lambda_i \ge 0\qquad\Longleftrightarrow\qquad \nabla f + \lambda^T J_g = 0$$<div class="label">for min f s.t. g_i(x) ≤ 0. J_g stacks the constraint gradients as rows</div></div>
+  <ul>
+    <li><b>Active</b> constraint ($g_i(x^*) = 0$, you're on the wall): $\lambda_i &gt; 0$.</li>
+    <li><b>Inactive</b> ($g_i(x^*) &lt; 0$, wall is far away): $\lambda_i = 0$; it exerts no push.</li>
+  </ul>
+  <div class="trap"><b>Heads up:</b> the 10/7 notes say "lambda&lt;0 for inactive constraints." The standard condition is $\lambda = 0$ for inactive constraints (complementary slackness: $\lambda_i g_i(x^*) = 0$), and all $\lambda_i \ge 0$.</div>
+  <div class="example"><b>Worked: the 10/7 activity</b>$f = \tfrac12\|x - [1,1]^T\|^2$, constraints $g_1 = x_2 \le 0$, $g_2 = -x_1 \le 0$. Constrained min at $x^* = (1,0)$.
+  <br>$\nabla f(x^*) = x^* - [1,1]^T = [0,-1]^T$ (points down, into the floor). $\nabla g_1 = [0,1]^T$ (points up, out of the feasible set). $g_2$ is inactive ($x_1 = 1 &gt; 0$), so $\lambda_2 = 0$.
+  <br>Balance: $[0,-1]^T = -\lambda_1[0,1]^T$ → $\lambda_1 = 1 &gt; 0$. ✓ Active constraint, positive multiplier.</div>
+  <p>Gradient values worth recognizing from the same activity: $\nabla f(0,0) = [-1,-1]$, $\nabla f(-1,0) = [-2,-1]$, $\nabla f(0,2) = [-1,1]$. All point away from $(1,1)$, perpendicular to the circular level sets.</p>
+  <h5>Reading $Cx \le d$</h5>
+  <p>Each row $c_i^Tx \le d_i$ is a half-space: $c_i$ is the normal of the boundary line/plane, $d_i$ shifts it from the origin, and $\le$ picks the side. Stack several and you get a polytope. QP = quadratic cost + these. QCQP = quadratic constraints too (disk-shaped feasible sets).</p>
+  <details class="q"><summary>A QP has unique solution: true in general? (10/14 poll)</summary><div class="a">No. A QP is convex with no local minima, but the minimizer can be non-unique (e.g. a flat direction in the cost).</div></details>
+  <details class="q"><summary>Can you add an arbitrary constant to a QP's constraints like you can to its cost?</summary><div class="a">No. Adding a constant to the cost doesn't move the minimizer. Adding one to a constraint changes $d$, which slides the hyperplane and changes which $x$ are feasible.</div></details>
+</section>
+</div>
+<div class="topic" id="topic-3" data-short="3 · Path planning">
+<header class="topic-head">
+  <div class="eyebrow">Topic 3 · 10/7 – 10/21</div>
+  <h2>Finding the good way: graph search, splines, sampling-based planners</h2>
+  <p>Three families, one problem: get from start to goal through the free configuration space. Graph search is complete but jagged, splines are smooth but need convex regions, sampling scales to high dimensions but struggles with narrow gaps.</p>
+</header>
+
+<section class="lesson" id="cspace" data-nav="C-space, graphs, decomposition">
+  <div class="lesson-head"><h3>Free configuration space, graph search, decomposition</h3><span class="date">10/7 · 10/13</span></div>
+  <div class="bigidea"><b>Big idea</b>Plan in joint space, not in the workspace. A configuration is "free" if, after forward kinematics, the robot doesn't hit anything. Discretize that free space into a graph, then any graph search finds a path.</div>
+  <ul>
+    <li><b>Configuration space</b>: minimal generalized coordinates (e.g. $[q_1,q_2,q_3]\in[0,2\pi)^3$). <b>Workspace</b>: where the robot lives ($\mathbb R^3$). FK maps the first to the second.</li>
+    <li><b>Free C-space</b>: configurations whose FK doesn't intersect obstacles. A box in the workspace becomes a weird blob in C-space.</li>
+    <li><b>Path planning problem</b>: a sequence of configurations in free C-space from start to goal.</li>
+  </ul>
+  <h5>Graph-based planning</h5>
+  <p>Nodes = samples in free C-space (e.g. a grid), edges = feasible short motions between neighbors. Then search:</p>
+  <ul>
+    <li><b>BFS</b>: expands like a wavefront in all directions. <b>DFS</b>: runs deep down one branch. Both may search lots of space far from the goal.</li>
+    <li><b>A*</b>: adds a <b>heuristic</b> (estimate of remaining distance to goal, e.g. straight-line distance) so it expands toward the goal first.</li>
+    <li>+ <b>Complete</b>: returns a path if one exists in the graph, says so if not. − Approximate (only uses grid points), and paths are straight segments with velocity jumps → smooth afterwards with splines.</li>
+  </ul>
+  <h5>Decomposition-based planning</h5>
+  <p>Instead of points, cover free space with <b>convex regions</b> (polytopes, $C_ix + d_i \le 0$). Search the graph of overlapping regions for a high-level route, then fit a curve inside the chain of regions. Trapezoidal decomposition (vertical lines from each polygon vertex) is the classic special case with straight segments. IRIS automates finding big convex regions but can be slow.</p>
+  <details class="q"><summary>Why is a graph-based planner "complete" but only "resolution complete" in practice?</summary><div class="a">It's exact for the graph you built. If the grid is too coarse to fit through a gap, it will truthfully report "no path" even though a continuous path exists.</div></details>
+</section>
+
+
+<section class="lesson" id="splines" data-nav="Bernstein splines">
+  <div class="lesson-head"><h3>Function spaces and Bernstein splines</h3><span class="date">10/13 · 10/14</span></div>
+  <div class="bigidea"><b>Big idea</b>Treat curves as vectors: pick basis functions, and a curve is just a set of coefficients. With the Bernstein basis, those coefficients are <b>control points</b>, and the curve never leaves the convex hull of its control points. Keep the control points inside a convex region and the whole curve is safe.</div>
+  <ul>
+    <li><b>Functional vector space</b>: "vectors" are functions; add and scale pointwise. Bases: Fourier (sines/cosines), polynomials $1, t, t^2,\dots$. Functions are infinite-dimensional, so a finite basis can't represent everything.</li>
+  </ul>
+  <div class="eq">$$B_0 = (1-t)^3,\quad B_1 = 3t(1-t)^2,\quad B_2 = 3t^2(1-t),\quad B_3 = t^3,\qquad \sum_k B_k(t) = 1$$
+  $$p(t) = c_0B_0(t) + c_1B_1(t) + c_2B_2(t) + c_3B_3(t),\quad t\in[0,1]$$<div class="label">cubic Bernstein basis in the order used on 10/14 and in the activity. general: b_{m,ν} = (m choose ν) t^ν (1−t)^{m−ν}</div></div>
+  <div class="trap"><b>Trap:</b> the 10/13 notes list the basis in reverse order ($t^3$ first). From 10/14 on, $B_0 = (1-t)^3$ so that $p(0) = c_0$, $p(1) = c_3$. Use the 10/14 order.</div>
+  <h5>Endpoint facts (derive once, use forever)</h5>
+  <div class="eq">$$\dot p(t) = 3(c_1-c_0)(1-t)^2 + 6(c_2-c_1)t(1-t) + 3(c_3-c_2)t^2$$
+  $$p(0)=c_0,\quad p(1)=c_3,\quad \dot p(0) = 3(c_1-c_0),\quad \dot p(1) = 3(c_3 - c_2)$$<div class="label">the curve starts at c₀ heading toward c₁, ends at c₃ arriving from c₂. derivative of a cubic Bernstein curve = quadratic Bernstein curve on the differences</div></div>
+  <h5>Why the convex hull property holds</h5>
+  <p>Each $B_k(t) \ge 0$ on $[0,1]$ and they sum to 1, so $p(t)$ is a weighted average of the control points at every $t$. Weighted averages of points in a convex set stay in it.</p>
+  <h5>Planning with splines (L-shaped corridor, activity 10/14)</h5>
+  <p>One cubic segment per region. $R_A = [0,3]\times[0,1]$, $R_B = [2,3]\times[0,3]$, start $(0.5,0.5)$, goal $(2.5,2.5)$. Every requirement becomes a <b>linear</b> constraint on control points:</p>
+  <div class="tw"><table class="t">
+    <tr><th>Requirement</th><th>Constraint</th><th>CVXPY</th></tr>
+    <tr><td>start</td><td>$c_{A0} = p_{start}$</td><td><code>C_A[0] == p_start</code></td></tr>
+    <tr><td>goal</td><td>$c_{B3} = p_{goal}$</td><td><code>C_B[3] == p_goal</code></td></tr>
+    <tr><td>zero start velocity</td><td>$c_{A1} - c_{A0} = 0$</td><td><code>C_A[1] - C_A[0] == 0</code></td></tr>
+    <tr><td>zero end velocity</td><td>$c_{B3} - c_{B2} = 0$</td><td><code>C_B[3] - C_B[2] == 0</code></td></tr>
+    <tr><td>position continuity</td><td>$c_{A3} = c_{B0}$</td><td><code>C_A[3] == C_B[0]</code></td></tr>
+    <tr><td>velocity continuity</td><td>$c_{A3} - c_{A2} = c_{B1} - c_{B0}$</td><td><code>C_A[3]-C_A[2] == C_B[1]-C_B[0]</code></td></tr>
+    <tr><td>A stays in $R_A$</td><td>$0\le x\le3,\ 0\le y\le1$ for all $c_{Ak}$</td><td><code>C_A[:,0]&gt;=0, C_A[:,0]&lt;=3, C_A[:,1]&gt;=0, C_A[:,1]&lt;=1</code></td></tr>
+    <tr><td>B stays in $R_B$</td><td>$2\le x\le3,\ 0\le y\le3$ for all $c_{Bk}$</td><td><code>C_B[:,0]&gt;=2, C_B[:,0]&lt;=3, C_B[:,1]&gt;=0, C_B[:,1]&lt;=3</code></td></tr>
+  </table></div>
+  <div class="trap"><b>Heads up:</b> the 10/15 slide's CVXPY column has <code>C_A[:,1]&lt;=3</code> for spline A's y-bound. The region says $y \le 1$, so it should be <code>&lt;= 1</code>. Velocity continuity drops the factor 3 because it appears on both sides.</div>
+  <p><b>Counting:</b> 2 segments × 4 control points × 2 coords = 16 unknowns. Start/goal (4) + position continuity (2) + velocity continuity (2) + zero end velocities (4) = 12 equations. 4 DOF left (position and velocity at the switch), so you need a cost to pick one: next section.</p>
+  <details class="q"><summary>If all four control points are inside a convex region, is the curve guaranteed inside? What if the region is L-shaped?</summary><div class="a">Convex region: yes (convex hull property). L-shaped: no, the hull of the control points can cut the corner. That's why you use one segment per convex region.</div></details>
+  <details class="q"><summary>Where does a cubic Bernstein curve point at $t = 0$?</summary><div class="a">Along $c_1 - c_0$, with speed $3\|c_1 - c_0\|$. Setting $c_1 = c_0$ gives zero initial velocity.</div></details>
+</section>
+
+<section class="lesson" id="splineqp" data-nav="Min-acceleration QP">
+  <div class="lesson-head"><h3>Minimum-acceleration splines as a QP in CVXPY</h3><span class="date">10/14 · 10/15</span></div>
+  <div class="bigidea"><b>Big idea</b>Among all feasible splines, pick the one with the smallest total squared acceleration, $\int_0^1\|\ddot p\|^2dt$. That cost is quadratic in the control points and the constraints are linear, so it's a QP. Intuitively it wants velocity as constant as possible: straight, smooth, no lurching.</div>
+  <h5>Derivation (activity 10/14 scan part)</h5>
+  <div class="eq">$$\ddot p(t) = 6\big[\underbrace{(c_2 - 2c_1 + c_0)}_{a}(1-t) + \underbrace{(c_3 - 2c_2 + c_1)}_{b}\,t\big]$$
+  $$\|\ddot p\|^2 = 36\big[\|a\|^2(1-t)^2 + 2a^Tb\,t(1-t) + \|b\|^2t^2\big]$$
+  $$\int_0^1\|\ddot p\|^2dt = 36\Big(\tfrac13\|a\|^2 + \tfrac16\cdot 2a^Tb + \tfrac13\|b\|^2\Big) = 12\big(\|a\|^2 + a^Tb + \|b\|^2\big)$$<div class="label">uses ∫(1−t)² = ∫t² = 1/3 and ∫t(1−t) = 1/6 over [0,1]. a, b are "second differences" of control points</div></div>
+  <h5>Making CVXPY accept it</h5>
+  <p>$a^Tb$ is a product of two variables, which breaks the DCP rules even though the total is convex. Complete the square:</p>
+  <div class="eq">$$\|a\|^2 + a^Tb + \|b\|^2 = \tfrac12\|a+b\|^2 + \tfrac12\|a\|^2 + \tfrac12\|b\|^2$$<div class="label">check: ½(‖a‖² + 2aᵀb + ‖b‖²) + ½‖a‖² + ½‖b‖² ✓</div></div>
+<pre><code>def acceleration_cost(C):
+    a = C[2] - 2*C[1] + C[0]
+    b = C[3] - 2*C[2] + C[1]
+    return 12*(0.5*cp.sum_squares(a + b) + 0.5*cp.sum_squares(a) + 0.5*cp.sum_squares(b))
+
+C_A, C_B = cp.Variable((4, 2)), cp.Variable((4, 2))
+prob = cp.Problem(cp.Minimize(acceleration_cost(C_A) + acceleration_cost(C_B)), constraints)
+prob.solve()        # == is a constraint, not assignment; "== 0" broadcasts to a vector</code></pre>
+  <figure>
+    <svg viewBox="0 0 340 340" role="img" aria-label="L-shaped corridor with the optimal two-segment spline">
+      <rect x="20" y="220" width="300" height="100" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"></rect>
+      <rect x="220" y="20" width="100" height="300" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1" fill-opacity="0.7"></rect>
+      <text x="28" y="312" font-size="12" fill="var(--ink-2)" font-family="JetBrains Mono, monospace">R_A</text>
+      <text x="290" y="36" font-size="12" fill="var(--ink-2)" font-family="JetBrains Mono, monospace">R_B</text>
+      <polyline points="70,270 170,270 220,220" fill="none" stroke="var(--ax-z)" stroke-dasharray="4 4" stroke-width="1"></polyline>
+      <polyline points="220,220 270,170 270,70" fill="none" stroke="var(--ax-y)" stroke-dasharray="4 4" stroke-width="1"></polyline>
+      <path d="M70 270 C70 270 170 270 220 220" fill="none" stroke="var(--ax-z)" stroke-width="3"></path>
+      <path d="M220 220 C270 170 270 70 270 70" fill="none" stroke="var(--ax-y)" stroke-width="3"></path>
+      <g fill="var(--ink)"><circle cx="70" cy="270" r="4"></circle><circle cx="170" cy="270" r="4"></circle><circle cx="220" cy="220" r="4"></circle><circle cx="270" cy="170" r="4"></circle><circle cx="270" cy="70" r="4"></circle></g>
+      <text x="58" y="292" font-size="12" fill="var(--ink)" font-family="JetBrains Mono, monospace">start</text>
+      <text x="236" y="62" font-size="12" fill="var(--ink)" font-family="JetBrains Mono, monospace">goal</text>
+    </svg>
+    <figcaption>The solver's answer from 10/15. A: (0.5,0.5), (0.5,0.5), (1.5,0.5), (2,1). B: (2,1), (2.5,1.5), (2.5,2.5), (2.5,2.5). Dashed = control polygons; each curve stays inside its hull. The switch point (2,1) sits in the overlap $R_A\cap R_B$, and the tangents match there ($c_{A3}-c_{A2} = c_{B1}-c_{B0} = (0.5,0.5)$). Fun fact: SVG's <code>C</code> path command is exactly a cubic Bernstein curve, which is how this is drawn.</figcaption>
+  </figure>
+  <h5>Interpolating vs smoothing splines</h5>
+  <p><b>Interpolating</b> (planning): pass through waypoints, so data are hard equality constraints. <b>Smoothing</b> (filtering): data go into the cost as $\|p(t_i) - p_i\|^2$, traded against smoothness. Other regularizers: min length, min velocity, min time with velocity/acceleration limits.</p>
+  <details class="q"><summary>Why is $\int\|\ddot p\|^2$ smallest for a straight constant-speed line?</summary><div class="a">Then $\ddot p = 0$ everywhere, so the cost is 0, its smallest possible value. Bends and speed changes both require acceleration.</div></details>
+</section>
+
+<section class="lesson" id="sampling" data-nav="RRT & RRT*">
+  <div class="lesson-head"><h3>Sampling-based planning: EST, RRT, RRT*</h3><span class="date">10/15 · 10/21</span></div>
+  <div class="bigidea"><b>Big idea</b>Don't map the free space. Just throw random samples, keep the ones you can reach, and grow a tree from the start until it touches the goal. RRT grows fast by always extending the nearest node toward a random point. RRT* also rewires the tree so paths straighten out over time.</div>
+  <h5>Four ingredients</h5>
+  <ul>
+    <li><b>Collision check</b>: is configuration $q$ in free space?</li>
+    <li><b>Sampler</b>: random configurations (uniform by default; fine if they land in obstacles).</li>
+    <li><b>Local planner</b>: can two samples be connected simply? Default: straight line + collision checks along it.</li>
+    <li><b>Distance</b>: Euclidean by default; used for "nearest" and "close to goal."</li>
+  </ul>
+  <h5>The algorithms</h5>
+  <div class="tw"><table class="t">
+    <tr><th></th><th>How it picks where to grow</th><th>Pros</th><th>Cons</th></tr>
+    <tr><td>EST</td><td>pick a random tree node, sample near it</td><td>simple</td><td>favors old nodes (dense near root), slow, branches fold back</td></tr>
+    <tr><td>RRT</td><td>random point anywhere → nearest tree node → step toward it ($x_{steer}$)</td><td>fast exploration (pulled into big empty regions), no loops</td><td>jagged, far from optimal</td></tr>
+    <tr><td>RRT*</td><td>RRT step, then <b>rewire</b>: connect $x_{steer}$ via the cheapest neighbor, and re-parent neighbors through $x_{steer}$ if that's cheaper</td><td>paths tend to optimal as samples grow</td><td>more work per sample</td></tr>
+  </table></div>
+  <div class="widget" id="w-rrt">
+    <div class="wtitle">Try it · the activity 7 map ([0,12] × [0,10], six circular obstacles)</div>
+    <canvas aria-label="RRT planner on the activity 7 map"></canvas>
+    <div class="controls">
+      <button type="button" id="rrt-run">Run RRT</button>
+      <button type="button" id="rrtstar-run">Run RRT*</button>
+      <button type="button" id="rrt-stop">Stop</button>
+      <label for="rrt-r">obstacle radius <input type="range" id="rrt-r" min="0.8" max="2.0" step="0.05" value="1.5"></label>
+    </div>
+    <div class="readout"></div>
+    <p style="font-size:13px;color:var(--ink-2);margin:8px 0 0">Green = start (1,1), blue = goal (1,9), same as the activity. Click open space to move the goal, click again to move the start. Run RRT a few times: different jagged path every time. Run RRT*: watch the cost drop as it keeps sampling. Then push the radius to 2.0 (the activity's value): the gaps shrink to ~0.2 wide and the tree struggles. That's the narrow passage problem.</p>
+  </div>
+  <h5>Narrow passages and other tricks</h5>
+  <ul>
+    <li>A tiny gap = tiny probability that a sample lands in it. Fixes: sample more; bias samples toward obstacle edges using rejected samples (usually not worth it); better local planner (curves instead of straight lines, but expensive).</li>
+    <li><b>Shortcutting</b> post-process: try to connect non-adjacent path nodes directly; straighter, fewer nodes. This is what OMPL's <code>simplifySolution()</code> does.</li>
+    <li><b>Kinodynamic planning</b>: plan trajectories (position + time), not just paths. Pick a tree node, sample random <em>inputs</em> (e.g. $v, \omega$ for a car), integrate forward. Every branch is dynamically feasible by construction; a good <b>steering function</b> helps.</li>
+  </ul>
+  <details class="q"><summary>Why does RRT explore faster than EST?</summary><div class="a">Uniform random points mostly land in big unexplored regions, and the nearest tree node to them is on the tree's frontier. So the tree is pulled outward (Voronoi bias), instead of piling up near the root.</div></details>
+  <details class="q"><summary>What does RRT* rewiring do to a neighbor $x_{neigh}$?</summary><div class="a">If cost(root→$x_{steer}$) + dist($x_{steer}$, $x_{neigh}$) &lt; current cost of $x_{neigh}$, and the edge is collision-free, make $x_{steer}$ its parent. Branches straighten toward the root.</div></details>
+</section>
+
+<section class="lesson" id="ompl" data-nav="OMPL">
+  <div class="lesson-head"><h3>OMPL in practice</h3><span class="date">10/21 · activity 7</span></div>
+  <div class="bigidea"><b>Big idea</b>OMPL (C++ with a thin Python binding) handles the sampler, local planner and tree. You supply the space, its bounds, a collision checker, start and goal.</div>
+<pre><code>from ompl import base as ob, geometric as og
+from math import hypot
+
+def is_state_valid(state):
+    # false if inside or on any circle
+    return all(hypot(state[0]-cx, state[1]-cy) &gt; OBSTACLE_RADIUS for cx, cy in OBSTACLE_CENTERS)
+
+space = ob.RealVectorStateSpace(2)
+bounds = ob.RealVectorBounds(2)
+bounds.setLow(0.0)
+bounds.setHigh(0, MAP_WIDTH)
+bounds.setHigh(1, MAP_HEIGHT)          # slide shows MAP_WIDTH here; height is correct
+space.setBounds(bounds)
+
+start = space.allocState(); start[0], start[1] = coord_start
+goal = space.allocState();  goal[0],  goal[1]  = coord_goal
+
+setup = og.SimpleSetup(space)
+setup.setStateValidityChecker(ob.StateValidityCheckerFn(is_state_valid))
+setup.setStartAndGoalStates(start, goal)
+setup.setPlanner(og.RRTstar(setup.getSpaceInformation()))   # or BITstar, RRT, PRM, ...
+if setup.solve():
+    setup.simplifySolution()            # shortcutting
+    states = setup.getSolutionPath().getStates()</code></pre>
+  <div class="trap"><b>Watch out:</b> the provided file has <code>if flag_simplify():</code>, which calls a bool and errors. It should be <code>if flag_simplify:</code>. Also "inside <em>or on</em>" means use <code>&gt;</code>, not <code>&gt;=</code>, for valid. (The wrapper names, <code>SimpleSetup(space)</code> and <code>StateValidityCheckerFn</code>, can differ slightly between OMPL Python builds, so match your environment.)</div>
+  <p>What you don't see: the state space comes with a default sampler and local planner (straight-line interpolation with collision checks at a set resolution).</p>
+  <details class="q"><summary>Activity 1.2: what changes with path simplification on vs off?</summary><div class="a">Off: the raw tree path, many zig-zag nodes. On: shortcutting removes unnecessary nodes, giving a straighter, shorter path with fewer waypoints.</div></details>
+</section>
+</div>
+<div class="topic" id="topic-4" data-short="4 · Dynamics">
+<header class="topic-head">
+  <div class="eyebrow">Topic 4 · 10/26 –</div>
+  <h2>The dynamic robot: equations of motion</h2>
+  <p>Kinematics says where things are. Dynamics says how forces make them move: a model $\dot x = f(x,u)$ with state $x = [q;\ \dot q]$. Notes so far cover 10/26; later lectures (Lyapunov, LQR, MPC) get added as they happen.</p>
+</header>
+
+<section class="lesson" id="eom" data-nav="EoM, Newton, mass matrix">
+  <div class="lesson-head"><h3>Equations of motion, Newton's method, the mass matrix</h3><span class="date">10/26</span></div>
+  <div class="bigidea"><b>Big idea</b>To control a robot you need an ODE for it. Newton's way tracks every force, including the reaction forces holding joints together. Lagrange's way works directly in joint coordinates, so those constraint forces never show up. Both start from kinetic energy, and for a robot KE is a quadratic in $\dot q$ whose matrix is the <b>mass matrix</b> $M(q)$.</div>
+  <div class="eq">$$\dot x = f(x,u),\qquad x = \begin{bmatrix}q\\ \dot q\end{bmatrix}\ \ (\text{generalized coordinates and velocities}),\ \ u = \text{actuator inputs}$$<div class="label">equations of motion (EoM)</div></div>
+  <h5>Newton</h5>
+  <ul>
+    <li>$F = ma \Rightarrow \ddot x = F/m$. Easy for a free body, messy with joints: you must add <b>reaction forces</b> that enforce each kinematic constraint.</li>
+    <li>For serial robots there's a fast recursive version (<b>Featherstone</b>): (1) tip → root: accumulate forces/torques; (2) root → tip: propagate accelerations. It works in workspace coordinates (6N numbers for N links).</li>
+    <li>Tron's analogy: reaction forces balancing applied forces ≈ constraint gradients balancing the cost gradient at a constrained minimum ($\nabla f = \lambda\nabla g$).</li>
+  </ul>
+  <h5>Kinetic energy and the mass matrix</h5>
+  <div class="eq">$$KE = \tfrac12 m\|\dot p\|^2 = \tfrac12 m\|J_p(q)\dot q\|^2 = \tfrac12\dot q^T\underbrace{\big(mJ_p(q)^TJ_p(q)\big)}_{M(q)}\dot q$$<div class="label">for a point mass at p(q). For several masses, sum the M's. M is symmetric positive (semi)definite</div></div>
+  <p>This is where topic 2 pays off: the Jacobian turns joint speeds into Cartesian speeds, and KE is just ½m(speed)².</p>
+  <div class="example"><b>Example: pendulum</b>Point mass at distance $\ell$, angle $q$: $p = \ell[-\sin q,\ \cos q,\ 0]^T$, so $J_p = \ell[-\cos q,\ -\sin q,\ 0]^T$ and
+  $$M = m\ell^2(\cos^2 q + \sin^2 q) = m\ell^2,\qquad KE = \tfrac12 m\ell^2\dot q^2.$$
+  Constant mass matrix, because the mass is always the same distance from the pivot.</div>
+  <details class="q"><summary>10/26 poll: is $\dot q = J^{-1}\dot p$ correct?</summary><div class="a">Only if $J$ is square and invertible. The always-true statement is $\dot p = J\dot q$ with $J = \partial p/\partial q$.</div></details>
+  <details class="q"><summary>For a 2-link planar arm with point masses at each tip, how would you build $M(q)$?</summary><div class="a">$M = m_1J_1^TJ_1 + m_2J_2^TJ_2$, where $J_i$ is the 2×2 position Jacobian of mass $i$ w.r.t. $(q_1,q_2)$ ($J_1$ has a zero second column). Unlike the pendulum, $M$ depends on $q_2$.</div></details>
+</section>
+
+<section class="lesson" id="hamilton" data-nav="Hamilton & Euler-Lagrange">
+  <div class="lesson-head"><h3>Hamilton's principle, Euler-Lagrange, d'Alembert</h3><span class="date">10/26</span></div>
+  <div class="bigidea"><b>Big idea</b>Of all the ways the robot could get from configuration A to configuration B, nature picks the one where a certain integral (the action) is <em>stationary</em>: wiggle the path slightly and the action doesn't change to first order. That's "grad = 0," but for whole trajectories. Setting this variation to zero produces the equations of motion.</div>
+  <div class="eq">$$\mathcal A = \int_a^b L(q,\dot q)\,dt,\qquad \delta\mathcal A = \frac{\partial}{\partial s}\mathcal A\big(\vartheta(\cdot,s)\big)\Big|_{s=0} = 0$$<div class="label">Hamilton's principle with L = KE (no external forces). A variation ϑ(t,s) equals q(t) at s = 0 and keeps both endpoints fixed for all s</div></div>
+  <p>Analogy: ordinary optimization perturbs a point $x$ and asks for zero change. Here we perturb a whole curve $q(t)$ (keeping its ends pinned) and ask the same thing. It's a law (it fits experiments); usually the true path is a minimum, but not always.</p>
+  <h5>Derivation sketch</h5>
+  <ol>
+    <li>Differentiate under the integral: $\delta\mathcal A = \int\big(\frac{\partial KE}{\partial q}\delta q + \frac{\partial KE}{\partial\dot q}\delta\dot q\big)dt$.</li>
+    <li>Integrate the second term by parts. The boundary term vanishes because variations pin the endpoints.</li>
+    <li>Left with $\int\big[\frac{\partial KE}{\partial q} - \frac{d}{dt}\frac{\partial KE}{\partial\dot q}\big]\delta q\,dt = 0$ for <em>every</em> $\delta q$, so the bracket itself must be zero.</li>
+  </ol>
+  <div class="eq">$$\frac{d}{dt}\Big(\frac{\partial KE}{\partial\dot q}\Big) - \frac{\partial KE}{\partial q} = 0\qquad\text{(Euler-Lagrange)}$$
+  $$\text{with } KE = \tfrac12\dot q^TM(q)\dot q:\qquad M(q)\ddot q + \dot M(q)\dot q - \tfrac12\begin{bmatrix}\dot q^T\frac{\partial M}{\partial q_1}\dot q\\ \vdots\\ \dot q^T\frac{\partial M}{\partial q_N}\dot q\end{bmatrix} = 0\ \ \Longleftrightarrow\ \ M(q)\ddot q + \Gamma(q)(\dot q,\dot q) = 0$$<div class="label">∂KE/∂q̇ = M q̇, d/dt(M q̇) = Ṁq̇ + Mq̈. Γ = Christoffel symbols: velocity-squared terms (centrifugal/Coriolis)</div></div>
+  <div class="trap"><b>Heads up:</b> in the 10/26 notes the ½[…] term is written with a + sign. Moving $\frac{\partial KE}{\partial q} = +\tfrac12[\dot q^T\partial_{q_i}M\dot q]_i$ to the other side makes it −. Intuition from Tron: "$ma = 0$" plus a correction $\Gamma$ that comes from the constraints.</div>
+  <div class="example"><b>Pendulum, no forces (from the notes)</b>$M = m\ell^2$ constant, so $\partial M/\partial q = 0$ and $\dot M = 0$. Euler-Lagrange: $m\ell^2\ddot q = 0 \Rightarrow \ddot q = 0$. Constant angular velocity: with no gravity, it just spins.</div>
+  <h5>Adding forces: virtual work and d'Alembert-Lagrange</h5>
+  <ul>
+    <li>Power $P = \langle F, \dot p\rangle$, work $W = \int P\,dt$. <b>Virtual work</b>: $\delta W = F^T\delta p$, the work a force would do along a variation.</li>
+    <li><b>d'Alembert-Lagrange</b>: Hamilton's principle balanced with virtual work, $\delta\mathcal A_{KE} = \int\delta W\,dt$ (where the 10/26 notes stop).</li>
+  </ul>
+  <div class="example"><b>Where this leads (standard result, beyond the 10/26 notes)</b>Since $\delta p = J_p\delta q$, virtual work is $\delta W = (J_p^TF)^T\delta q$. The force shows up in joint space as $\tau = J_p^TF$, and the equation becomes
+  $$\frac{d}{dt}\frac{\partial KE}{\partial\dot q} - \frac{\partial KE}{\partial q} = J_p^TF.$$
+  Hanging pendulum ($p = \ell[\sin q, -\cos q, 0]^T$, gravity $F = [0,-mg,0]^T$): $J_p^TF = -mg\ell\sin q$, so $m\ell^2\ddot q = -mg\ell\sin q \Rightarrow \ddot q = -\tfrac g\ell\sin q$. The familiar pendulum. (Same $J^T$ that maps errors to joint steps in IK, now mapping forces to torques.)</div>
+  <details class="q"><summary>Why does the boundary term from integration by parts vanish?</summary><div class="a">It's evaluated at $t=a$ and $t=b$, multiplied by $\partial q/\partial s$ there. Variations keep the endpoints fixed, so $\partial q/\partial s = 0$ at both ends.</div></details>
+  <details class="q"><summary>Why can Lagrangian mechanics ignore joint reaction forces?</summary><div class="a">Generalized coordinates only describe motions the joints allow. Reaction forces are perpendicular to every allowed motion, so they do zero virtual work and drop out.</div></details>
+</section>
+</div>
+</div>
+</main>
+</div>
+<script src="resources.js"></script>
+<script src="app.js"></script>
+<script src="widgets.js"></script>
+</body>
+</html>
